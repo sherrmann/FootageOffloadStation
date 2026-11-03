@@ -211,10 +211,15 @@ def test_mount_unmounts_automount_and_uses_options(helper, root, tmp_path):
     assert mount[-1] == str(tmp_path / "stick")
 
 
-def test_mount_ext4_chowns_root(helper, tmp_path):
+def test_mount_ext4_chowns_root(helper, tmp_path, monkeypatch):
+    # The helper runs as root; CI runners do not, so record the chown instead.
+    chowns = []
+    monkeypatch.setattr("footage_offload.helper.os.chown",
+                        lambda path, uid, gid: chowns.append((str(path), uid, gid)))
     helper.run.fstype = "ext4"
     r = helper.handle({"action": "mount_stick", "args": {"device": "/dev/sda1"}})
     assert r["ok"], r
+    assert chowns and chowns[0][0] == str(tmp_path / "stick")
     mount = [c for c in helper.run.calls if c[0] == "mount"][0]
     assert "uid=" not in mount[4] and "noexec" in mount[4]
 
