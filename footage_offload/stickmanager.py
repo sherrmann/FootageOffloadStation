@@ -342,4 +342,7 @@ class StickManager:
         return ejected
 
     def _publish(self):
-        self.status.update(stick=self._compute())
+        # Compute and publish under the lock: otherwise a snapshot computed
+        # earlier on another thread can overwrite a newer one.
+        with self._lock:
+            self.status.update(stick=self._compute())
