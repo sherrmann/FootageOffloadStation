@@ -276,6 +276,7 @@ function renderStatus() {
   el.appendChild(title('status.title'));
   var pct = s.bytes_total > 0 ? Math.min(100, s.bytes_done * 100 / s.bytes_total) : (s.state === 'done' ? 100 : 0);
   var card = h('section', { class: 'card' }, h('p', { class: 'state ' + s.state, text: t('status.' + s.state) }));
+  if (s.state === 'done' && !s.error) card.appendChild(h('p', { class: 'muted', text: t('status.done_detail') }));
   if (s.error) card.appendChild(h('div', { class: 'alert err', role: 'alert' }, errText(s.error)));
   var d = s.device;
   var rows = [[t('status.device'), d ? [(d.manufacturer && d.model.indexOf(d.manufacturer) !== 0 ? d.manufacturer + ' ' : '') + d.model] : t('status.no_device')]];
