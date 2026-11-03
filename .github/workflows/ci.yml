@@ -1,7 +1,11 @@
 name: CI
 
-# Stage 1  every push and pull request: tests and the .deb on x86 Ubuntu
-# Stage 2  every push: the .deb on an armv6 Raspberry Pi OS userland (QEMU
+# Runs on pull requests, release tags and by hand (workflow_dispatch). Not on
+# branch pushes: a pull request run already tests the result of the merge, so
+# the push to main after merging would repeat it.
+#
+# Stage 1  pull requests and tags: tests and the .deb on x86 Ubuntu
+# Stage 2  pull requests and tags: the .deb on an armv6 Raspberry Pi OS userland (QEMU
 #          user emulation in Docker): install, smoke test, purge, file system
 #          must be unchanged. Bookworm is the reference, Trixie also runs.
 # Stage 3  release tags v*: full boot of the Raspberry Pi OS Lite image in
@@ -11,7 +15,6 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -74,7 +77,6 @@ jobs:
 
   stage2:
     name: "Stage 2: armv6 install/purge (${{ matrix.release }})"
-    if: github.event_name != 'pull_request'
     needs: stage1
     runs-on: ubuntu-24.04
     timeout-minutes: 120
