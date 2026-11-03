@@ -35,6 +35,7 @@ packaging/build-deb.sh
 - Use British English in code comments, documentation and user-facing text.
 - User-facing strings are message ids. Each id is translated in all four files in `footage_offload/data/i18n/*.json` (English, German, French and Italian).
 - French and Italian texts are reviewed by a native speaker before a release.
+- The web UI has no explanatory text: no hints under fields, no notes, notices or descriptions next to controls. Labels, values, status, warnings and errors only. Explanations belong in the README.
 
 ## Device reports
 
