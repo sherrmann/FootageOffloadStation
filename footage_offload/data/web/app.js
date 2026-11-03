@@ -418,7 +418,7 @@ function renderGallery() {
     if (gen !== S.gen) return;
     clear(el); el.appendChild(title('gallery.title'));
     el.appendChild(h('p', { class: 'small-text muted', text: t('gallery.note') }));
-    var runs = (g.runs || []).slice().reverse();
+    var runs = (g.runs || []); // the server sends newest first
     if (!runs.length) el.appendChild(h('p', { class: 'card muted', text: t('gallery.empty') }));
     runs.forEach(function (run, i) {
       var grid = h('div', { class: 'grid' });
