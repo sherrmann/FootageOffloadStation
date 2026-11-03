@@ -34,7 +34,7 @@ def initial_status():
         "stick": None,              # filled by the stick watcher
         "clock": None,              # {"ntp_synchronised": bool}
         "throttled": None,          # {"undervoltage_now": bool, "undervoltage_occurred": bool}
-        "nas": None,                # {"state": "idle|running|done|error", "detail": str}
+        "nas": None,                # {"state": "running|done|error", "detail": str, "run": folder}
         "updated_at": time.time(),
     }
 

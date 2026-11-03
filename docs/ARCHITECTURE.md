@@ -73,7 +73,7 @@ after_run(info, result: RunResult)        # after a run (also empty runs; check 
 ```
 
 `timesync.ClockSync`, `nas.NasCopy`, `mqtt.MqttPublisher`,
-`sysinfo.ThrottleMonitor` are extras. Their constructors take
+`sysinfo.SysInfo` (undervoltage monitor and update check) are extras. Their constructors take
 `(config, status, helper)` and, where needed, `state`/`stick_manager`.
 
 ### StickManager (`stickmanager.py`)
