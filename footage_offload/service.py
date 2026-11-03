@@ -36,6 +36,7 @@ class Service:
         self.stick_manager = stick_manager_factory(self)
         self._queue = queue.Queue()
         self._pending = set()          # ports queued or running
+        self._rerun = set()            # pending ports that need another run afterwards
         self._lock = threading.Lock()
         self._worker = None
         self._stop = threading.Event()
@@ -85,6 +86,9 @@ class Service:
         Cameras that are still connected get another run."""
         with self._lock:
             present = list(self._present.values())
+            # A run already queued or in progress may have looked for the
+            # stick before it arrived; give that camera one more run.
+            self._rerun.update(i.port for i in present if i.port in self._pending)
         for info in present:
             self.camera_added(info)
 
@@ -102,6 +106,11 @@ class Service:
             finally:
                 with self._lock:
                     self._pending.discard(info.port)
+                    again = info.port in self._rerun and info.port in self._present
+                    self._rerun.discard(info.port)
+                    info = self._present.get(info.port, info)
+                if again:
+                    self.camera_added(info)
 
     def _before_run(self, camera, info, files):
         for extra in self.extras:
@@ -113,13 +122,14 @@ class Service:
                     log.exception("before_run hook %r", extra)
 
     def _run_device(self, info):
-        stick = self.stick_manager.stick()
         try:
             camera = self.backend.open(info)
         except Exception as e:  # noqa: BLE001
             log.warning("cannot open %s: %s", info.port, e)
             self.status.update(state=st.ERROR, error={"id": "error.camera_open", "detail": str(e)})
             return
+        # Look for the stick only now: opening a camera can take seconds.
+        stick = self.stick_manager.stick()
         with camera:
             if stick is None:
                 # Without the adopted stick nothing is copied and nothing deleted.

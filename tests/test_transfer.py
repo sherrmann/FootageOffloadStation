@@ -301,3 +301,71 @@ def test_progress_reported(env):
     env.run()
     assert any(st == "transferring" and b > 0 for st, b in seen)
     assert env.status.snapshot()["bytes_done"] == 300_000
+
+
+def _dir_fsync(monkeypatch, err):
+    """Make fsync fail with `err` on directories only."""
+    real = os.fsync
+
+    def fake(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError(err, os.strerror(err))
+        return real(fd)
+
+    monkeypatch.setattr(os, "fsync", fake)
+
+
+def test_directory_sync_io_error_keeps_camera_file(env, monkeypatch):
+    import errno
+    env.add("GH010001.MP4", 50_000)
+    _dir_fsync(monkeypatch, errno.EIO)
+    r = env.run()
+    assert r.error_id == "error.stick"
+    assert camera_files(env) == ["GH010001.MP4"]
+
+
+def test_directory_sync_unsupported_is_ignored(env, monkeypatch):
+    import errno
+    env.add("GH010001.MP4", 50_000)
+    _dir_fsync(monkeypatch, errno.EINVAL)
+    r = env.run()
+    assert r.result == "ok" and camera_files(env) == []
+
+
+def test_storage_listing_error_is_retried(env):
+    from footage_offload.camera.base import CameraError
+    env.add("GH010001.MP4", 10_000)
+    cam = env.backend.open(env.info)
+    real = cam.list_folders
+    fails = {"n": 2}
+
+    def flaky(folder):
+        if folder != "/" and fails["n"]:
+            fails["n"] -= 1
+            raise CameraError("busy")
+        return real(folder)
+
+    cam.list_folders = flaky
+    from footage_offload.transfer import TransferRun
+    r = TransferRun(cam, env.info, env.stick, env.cfg, env.status, env.state,
+                    sleep=lambda s: None).execute()
+    assert r.result == "ok" and r.files == 1
+
+
+def test_unreadable_storage_is_an_error_not_an_empty_camera(env):
+    from footage_offload.camera.base import CameraError
+    env.add("GH010001.MP4", 10_000)
+    cam = env.backend.open(env.info)
+    real = cam.list_folders
+
+    def broken(folder):
+        if folder != "/":
+            raise CameraError("storage not readable")
+        return real(folder)
+
+    cam.list_folders = broken
+    from footage_offload.transfer import TransferRun
+    r = TransferRun(cam, env.info, env.stick, env.cfg, env.status, env.state,
+                    sleep=lambda s: None).execute()
+    assert not r.empty and r.result == "error" and r.error_id == "error.camera"
+    assert camera_files(env) == ["GH010001.MP4"]

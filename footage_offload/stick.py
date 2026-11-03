@@ -25,6 +25,8 @@ from .paths import MARKER_NAME
 RUN_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}(_\d+)?$")
 PART_PREFIX = "."
 PART_SUFFIX = ".part"
+# errno values meaning "this file system cannot fsync a directory"
+_DIR_SYNC_UNSUPPORTED = (errno.EINVAL, errno.ENOTSUP, errno.EOPNOTSUPP, errno.EBADF)
 
 
 class StickError(Exception):
@@ -185,14 +187,17 @@ class Stick:
 
     @staticmethod
     def fsync_dir(path):
-        try:
-            fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
-        except OSError:
-            return
+        """Flush a directory entry to disk. Raises OSError on real failures.
+
+        Only "directory sync not supported" is ignored (some exFAT/vfat
+        drivers); an I/O error must reach the caller so the camera original
+        is not deleted."""
+        fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
         try:
             os.fsync(fd)
-        except OSError:
-            pass  # exFAT/vfat may refuse fsync on directories
+        except OSError as e:
+            if e.errno not in _DIR_SYNC_UNSUPPORTED:
+                raise
         finally:
             os.close(fd)
 

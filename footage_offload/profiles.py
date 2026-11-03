@@ -41,10 +41,10 @@ class GenericProfile:
         result = []
         for store in camera.list_folders("/"):
             root = "/" + store
-            try:
-                top = camera.list_folders(root)
-            except Exception:  # noqa: BLE001 - a storage that cannot be listed is skipped
-                continue
+            # A listing error propagates so the run retries and, failing that,
+            # reports an error: a storage that cannot be read must never make
+            # the camera look empty (it would be released as if offloaded).
+            top = camera.list_folders(root)
             for name in top:
                 if name.upper() == "DCIM":
                     dcim = root + "/" + name

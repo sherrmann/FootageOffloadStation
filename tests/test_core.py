@@ -209,3 +209,53 @@ def test_reenumerated_empty_camera_not_in_history(env):
         assert env.state.runs() == []
     finally:
         svc.stop()
+
+
+def test_stick_arriving_while_camera_opens_gets_another_run(env):
+    import threading
+    env.add("GH010001.MP4", 10_000)
+    opening = threading.Event()
+    release = threading.Event()
+    real_open = env.backend.open
+
+    def slow_open(info):
+        opening.set()
+        release.wait(5)
+        return real_open(info)
+
+    env.backend.open = slow_open
+    holder = {"stick": None}
+
+    class LateStickManager(FakeStickManager):
+        def stick(self):
+            return holder["stick"]
+
+    helper = FakeHelper()
+    svc = Service(env.cfg, env.backend, helper, lambda s: LateStickManager(s, None),
+                  status=env.status, state=env.state)
+    svc.start()
+    try:
+        info = env.info.__class__(**{**env.info.__dict__, "sysfs_path": "/sys/bus/usb/devices/1-1"})
+        svc.camera_added(info)
+        assert opening.wait(5)
+        # The run reads the stick after open() returns; make it look absent
+        # for this run by arriving only after the check, as the race does.
+        orig_stick = LateStickManager.stick
+
+        calls = {"n": 0}
+
+        def stick_once_missing(self):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                holder["stick"] = env.stick
+                svc.stick_changed()          # arrives while the run is pending
+                return None
+            return orig_stick(self)
+
+        LateStickManager.stick = stick_once_missing
+        release.set()
+        assert wait_until(lambda: helper.calls, 5)
+        assert not (env.camdir / "GH010001.MP4").exists()
+        assert env.state.runs()[0]["files"] == 1
+    finally:
+        svc.stop()
