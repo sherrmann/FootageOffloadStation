@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a fault in Footage Offload Station
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the problem as clearly as you can.
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Output of `dpkg -s footage-offload | grep Version`
+    validations:
+      required: true
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Raspberry Pi model, Raspberry Pi OS edition and release, camera make and model and firmware, USB stick make, size and file system, power supply.
+      placeholder: |
+        Raspberry Pi Zero W, Raspberry Pi OS Lite Bookworm
+        GoPro HERO6 Black, firmware 1.0.0
+        USB stick 32 GB, exFAT
+        2.5 A supply into the board
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe what you did and what the web interface or the camera showed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics bundle
+      description: |
+        In the web interface, open the System page and choose "Download diagnostics bundle". Attach the file to this issue by dragging it into the box below.
+
+        The bundle contains no footage. It does contain logs and device serial numbers. Check the file before you attach it, and remove anything you do not want to share.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Checks
+      options:
+        - label: I have searched the existing issues for the same problem.
+          required: true
+        - label: I understand that the diagnostics bundle contains logs and device serial numbers.
+          required: true
