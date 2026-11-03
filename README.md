@@ -141,12 +141,12 @@ All settings are on the Settings page. Defaults are in brackets.
 | Setting | Meaning |
 |---|---|
 | Language | Follow the browser (default), or English, German, French, Italian. |
-| Web port | Port of the web UI (8080). |
+| Web port | Port of the web UI (8080). Takes effect after the service restarts. |
 | Minimum free space | Space always left free on the stick (1024 MB). Rotation deletes old runs to keep it. |
 | Password | Off by default. See [Security notes](#security-notes). |
 | Camera Wi-Fi | SSID and password of the camera's Wi-Fi, for setting the camera clock (off). |
 | Samba share | Read-only share "footage" (off). |
-| NAS copy | Onward copy after each run, by rsync or SMB, with target, user name and password (off). |
+| NAS copy | Onward copy after each run, by rsync or SMB, with target, user name and password (off). Target formats: rsync `host:/path` or `rsync://host/module/path`; SMB `//server/share/path`. |
 | MQTT | Host, port, user name, password and topic (off, topic `footage-offload`). |
 | Update check | Ask GitHub whether a newer release exists (off). It only shows a hint. |
 

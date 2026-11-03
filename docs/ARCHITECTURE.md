@@ -22,6 +22,7 @@ contain "GoPro" (trademark); GoPro is only named as a supported device.
 * User-facing text in Python is a message id (`error.stick_full`), never an
   English sentence. The UI translates ids. Logs and CLI output are English.
 * Docs and comments in British English.
+* The web UI shows no explanatory text (hints, notes, notices, descriptions). It shows labels, values, status, warnings and errors only; explanations go in the README.
 
 ## Processes
 

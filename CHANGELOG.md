@@ -4,7 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] - unreleased
+## [1.0.1] - unreleased
+
+### Changed
+
+- Web UI: no explanatory text any more (field hints, notes, notices). The UI shows labels, values, status, warnings and errors only; the warnings box appears only when there is a warning. Checkbox labels are shorter.
+- Web UI: the status headline after a run is a short "Done".
+
+### Fixed
+
+- Web UI: collapsible sections (gallery runs, error lists in History, Advanced settings) show an arrow, so collapsed gallery runs no longer look empty.
+
+## [1.0.0] - 2026-11-03
 
 ### Added
 

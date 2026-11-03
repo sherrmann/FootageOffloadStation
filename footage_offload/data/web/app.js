@@ -295,14 +295,14 @@ function renderStatus() {
   if (s.nas && s.nas.state && s.nas.state !== 'idle') rows.push([t('status.nas'), t('status.nas.' + s.nas.state) + (s.nas.detail ? ' (' + s.nas.detail + ')' : '')]);
   card.appendChild(kv(rows));
   el.appendChild(card);
-  var w = h('section', { class: 'card' }, h('h3', { text: t('status.warnings') }));
   var ws = s.warnings || [];
-  if (!ws.length) w.appendChild(h('p', { class: 'muted', text: t('status.no_warnings') }));
-  ws.forEach(function (x) {
-    w.appendChild(h('div', { class: 'alert ' + (x.id === 'warning.camera_clock_set' ? 'ok' : 'warn') }, msg(x.id, x.params)));
-  });
-  el.appendChild(w);
-  el.appendChild(h('p', { class: 'small-text muted' }, t('status.mtp_notice')));
+  if (ws.length) {
+    var w = h('section', { class: 'card' }, h('h3', { text: t('status.warnings') }));
+    ws.forEach(function (x) {
+      w.appendChild(h('div', { class: 'alert ' + (x.id === 'warning.camera_clock_set' ? 'ok' : 'warn') }, msg(x.id, x.params)));
+    });
+    el.appendChild(w);
+  }
 }
 
 /* ---------- 2. stick ---------- */
@@ -407,7 +407,7 @@ function openMedia(it) {
   if (it.preview) body.appendChild(h('video', { controls: true, autoplay: true, playsinline: true, src: it.preview, poster: it.thumb || null }));
   else if (it.thumb) body.appendChild(h('img', { src: it.thumb, alt: it.name }));
   else body.appendChild(h('p', { class: 'muted', text: t('gallery.no_preview') }));
-  body.appendChild(h('p', { class: 'small-text muted', text: fmtBytes(it.size) + ' · ' + t('gallery.note') }));
+  body.appendChild(h('p', { class: 'small-text muted', text: fmtBytes(it.size) }));
   var dl = $('#dlg-media-dl'); dl.href = it.download; dl.textContent = t('gallery.download'); dl.setAttribute('download', it.name);
   $('#dlg-media-close').textContent = t('common.close');
   d.showModal();
@@ -418,7 +418,6 @@ function renderGallery() {
   api('GET', '/api/v1/gallery').then(function (g) {
     if (gen !== S.gen) return;
     clear(el); el.appendChild(title('gallery.title'));
-    el.appendChild(h('p', { class: 'small-text muted', text: t('gallery.note') }));
     var runs = (g.runs || []); // the server sends newest first
     if (!runs.length) el.appendChild(h('p', { class: 'card muted', text: t('gallery.empty') }));
     runs.forEach(function (run, i) {
@@ -444,16 +443,16 @@ $('#dlg-media').addEventListener('close', function () {
 /* ---------- 5. settings ---------- */
 var FIELDS = [
   { sec: 'general', key: 'language', type: 'lang' },
-  { sec: 'general', key: 'min_free_mb', type: 'int', hint: true },
+  { sec: 'general', key: 'min_free_mb', type: 'int' },
   { sec: 'security', key: 'login_enabled', type: 'bool' },
-  { sec: 'security', key: 'password', type: 'newpw', hint: true },
+  { sec: 'security', key: 'password', type: 'newpw' },
   { sec: 'camera_wifi', key: 'camera_wifi_enabled', type: 'bool' },
   { sec: 'camera_wifi', key: 'camera_wifi_ssid', type: 'text' },
-  { sec: 'camera_wifi', key: 'camera_wifi_password', type: 'secret', hintId: 'settings.camera_wifi.hint' },
+  { sec: 'camera_wifi', key: 'camera_wifi_password', type: 'secret' },
   { sec: 'samba', key: 'samba_enabled', type: 'bool' },
   { sec: 'nas', key: 'nas_enabled', type: 'bool' },
   { sec: 'nas', key: 'nas_method', type: 'select', options: ['rsync', 'smb'] },
-  { sec: 'nas', key: 'nas_target', type: 'text', hint: true },
+  { sec: 'nas', key: 'nas_target', type: 'text' },
   { sec: 'nas', key: 'nas_username', type: 'text' },
   { sec: 'nas', key: 'nas_password', type: 'secret' },
   { sec: 'mqtt', key: 'mqtt_enabled', type: 'bool' },
@@ -467,7 +466,7 @@ var FIELDS = [
   { sec: 'advanced', key: 'chunk_size_kb', type: 'int' },
   { sec: 'advanced', key: 'retry_count', type: 'int' },
   { sec: 'advanced', key: 'retry_base_delay_s', type: 'number' },
-  { sec: 'advanced', key: 'web_port', type: 'int', hint: true }
+  { sec: 'advanced', key: 'web_port', type: 'int' }
 ];
 function renderSettings() {
   var el = view(), gen = S.gen;
@@ -500,14 +499,11 @@ function renderSettings() {
         input.value = cfg[f.key] === undefined || cfg[f.key] === null ? '' : cfg[f.key];
       }
       inputs[f.key] = input;
-      var hid = id + '-d', desc = [];
       var errEl = h('p', { class: 'ferr', id: id + '-e', role: 'alert' });
       errEls[f.key] = errEl;
-      var hint = f.hintId ? t(f.hintId) : (f.hint ? t('settings.' + f.key + '.hint') : null);
-      var hintEl = hint ? h('p', { class: 'hint', id: hid, text: hint }) : null;
-      if (hintEl) input.setAttribute('aria-describedby', hid + ' ' + id + '-e'); else input.setAttribute('aria-describedby', id + '-e');
-      if (f.type === 'bool') wrap = h('div', { class: 'field check' }, h('label', { for: id }, input, label), hintEl, errEl);
-      else wrap = h('div', { class: 'field' }, h('label', { for: id, text: label }), input, hintEl, errEl);
+      input.setAttribute('aria-describedby', id + '-e');
+      if (f.type === 'bool') wrap = h('div', { class: 'field check' }, h('label', { for: id }, input, label), errEl);
+      else wrap = h('div', { class: 'field' }, h('label', { for: id, text: label }), input, errEl);
       wraps[f.key] = wrap;
       if (!secs[f.sec]) {
         if (f.sec === 'advanced') {
@@ -607,7 +603,6 @@ function renderSystem() {
     if (sy.ntp_synchronised === false) card.appendChild(h('div', { class: 'alert warn' }, t('warning.ntp_not_synchronised')));
     else if (sy.ntp_synchronised) card.appendChild(h('div', { class: 'alert ok' }, t('system.ntp') + ': ' + t('system.ntp_ok')));
     if (sy.update_available) card.appendChild(h('div', { class: 'alert warn' }, t('warning.update_available', { version: sy.latest_version || '?' })));
-    else card.appendChild(h('p', { class: 'muted', text: sy.latest_version ? t('system.up_to_date') : t('system.update_unknown') }));
     card.appendChild(kv([[t('system.version'), sy.version || '–'], sy.latest_version ? [t('system.latest'), sy.latest_version] : null,
                          sy.hostname ? [t('system.hostname'), sy.hostname] : null]));
     el.appendChild(card);
@@ -616,7 +611,6 @@ function renderSystem() {
       h('button', { class: 'btn danger', id: 'b-shutdown', text: t('system.shutdown'), onclick: function () { powerAction('shutdown'); } })));
     el.appendChild(pw);
     el.appendChild(h('section', { class: 'card' }, h('h3', { text: t('system.diagnostics') }),
-      h('p', { class: 'muted small-text', text: t('system.diagnostics.hint') }),
       h('a', { class: 'btn', href: '/api/v1/diagnostics', download: '', text: t('system.diagnostics.download') })));
   }).catch(function (e) { if (gen === S.gen) failed(el, e, renderSystem); });
 }
