@@ -431,7 +431,11 @@ class Helper:
     # samba -----------------------------------------------------------------------
     @property
     def samba_include(self):
-        return os.path.join(self.config_dir, "smb-footage.conf")
+        # Must live in a root-only directory: smbd runs as root and a share
+        # definition can run commands (root preexec), so the service user
+        # must never be able to write this file. /etc/footage-offload is
+        # owned by the service user and therefore not suitable.
+        return self.sys("/etc/samba/footage-offload.conf")
 
     def share_text(self):
         user = self.service_user

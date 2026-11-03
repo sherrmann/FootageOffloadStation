@@ -1,0 +1,20 @@
+// Footage Offload Station: the service account may not use polkit at all.
+//
+// The main service runs as the system user "footage-offload". Everything
+// privileged it needs (mounting the stick, powering off USB, Wi-Fi, Samba,
+// shutdown) goes through the root helper and its fixed, validated action
+// list. The helper runs as root and never asks polkit. This rule denies every
+// polkit action (udisks2, NetworkManager, logind, systemd, ...) to the
+// service account, so a compromised service cannot bypass the helper, even
+// though the account is a member of groups such as plugdev that other rules
+// may trust.
+//
+// The "10-" prefix makes this rule run before most others: polkit evaluates
+// the files of /etc/polkit-1/rules.d and /usr/share/polkit-1/rules.d in
+// lexical order of their names and the first rule that returns a result wins.
+polkit.addRule(function (action, subject) {
+    if (subject.user == "footage-offload") {
+        return polkit.Result.NO;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

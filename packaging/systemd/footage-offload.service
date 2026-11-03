@@ -1,0 +1,20 @@
+[Unit]
+Description=Footage Offload Station
+Documentation=https://github.com/sherrmann/FootageOffloadStation
+After=network.target footage-offload-helper.service
+Wants=footage-offload-helper.service
+
+[Service]
+Type=simple
+User=footage-offload
+Group=footage-offload
+# Supplementary groups (plugdev, video, systemd-journal) come from the
+# user's group membership, set up by the package's postinst only where
+# those groups exist.
+# -I: no current directory, PYTHONPATH or user site on sys.path.
+ExecStart=/usr/bin/python3 -I -m footage_offload serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

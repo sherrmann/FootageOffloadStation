@@ -1,0 +1,23 @@
+[Unit]
+Description=Footage Offload Station root helper
+Documentation=https://github.com/sherrmann/FootageOffloadStation
+# The only process of Footage Offload Station that runs as root. It executes
+# a fixed list of validated actions (docs/ARCHITECTURE.md, "Root helper
+# protocol") for the main service over /run/footage-offload/helper.sock.
+Before=footage-offload.service
+
+[Service]
+Type=simple
+# /run/footage-offload (0750 root:footage-offload) comes from
+# /usr/lib/tmpfiles.d/footage-offload.conf, created at boot; recreated here
+# in case it was removed. Not RuntimeDirectory=: systemd would hand that
+# directory back to root:root for every command it starts, and the service
+# user could no longer reach the socket.
+ExecStartPre=/bin/systemd-tmpfiles --create footage-offload.conf
+# -I: no current directory, PYTHONPATH or user site on sys.path.
+ExecStart=/usr/bin/python3 -I -m footage_offload.helper
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

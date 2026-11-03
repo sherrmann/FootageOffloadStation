@@ -1,0 +1,53 @@
+# Footage Offload Station: claim MTP/PTP cameras for the service.
+#
+# For every USB camera (still-image interface class 06, or a device that
+# libgphoto2/libmtp recognised) this rule
+#   * sets FOS_CAMERA=1, which discovery.py looks for,
+#   * gives the device node /dev/bus/usb/BBB/DDD to group footage-offload,
+#     mode 0660, so the service user can open it through libgphoto2, and
+#   * removes ID_GPHOTO2, GPHOTO2_DRIVER, ID_MTP_DEVICE and ID_MEDIA_PLAYER,
+#     so the gvfs gphoto2/MTP volume monitors (Desktop edition) and media
+#     players ignore the camera instead of claiming it.
+#
+# Ordering (rules files run in lexical order of their names):
+#   20-libgphoto2-6*.hwdb   imported early for usb devices: ID_GPHOTO2,
+#                           GPHOTO2_DRIVER, ID_MEDIA_PLAYER for known models
+#   60-libgphoto2-6*.rules  generic PTP interface (060101) -> ID_GPHOTO2=1,
+#                           GROUP=plugdev, MODE=0664 (on add/bind only)
+#   69-libmtp.rules         known MTP players and mtp-probe -> ID_MTP_DEVICE=1,
+#                           ID_MEDIA_PLAYER=1 (on add/bind only)
+#   70-uaccess.rules        tags ID_GPHOTO2/ID_MEDIA_PLAYER devices "uaccess"
+#   73-seat-late.rules      queues the seat ACL for "uaccess" devices
+#   85-footage-offload      (this file) runs after all of them, so it sees
+#                           their properties, and its GROUP/MODE win because
+#                           the last plain assignment is applied. Clearing
+#                           the properties here is enough for gvfs, which
+#                           reads the final udev database. It does not undo
+#                           the desktop user's ACL from 73-seat-late; that
+#                           access is harmless because nothing auto-opens
+#                           the camera once gvfs ignores it.
+#
+# The libgphoto2 and libmtp rules only run on "add"/"bind". On later
+# "change" events (for example `udevadm trigger --action=change` from the
+# package's postinst) this rule still works: it checks the interface classes
+# itself and keeps FOS_CAMERA from the udev database.
+
+ACTION=="remove", GOTO="footage_offload_end"
+SUBSYSTEM!="usb", GOTO="footage_offload_end"
+
+# Interfaces: mark still-image interfaces too (discovery checks both).
+ENV{DEVTYPE}=="usb_interface", ATTR{bInterfaceClass}=="06", ENV{FOS_CAMERA}="1"
+ENV{DEVTYPE}!="usb_device", GOTO="footage_offload_end"
+
+ENV{FOS_CAMERA}!="1", IMPORT{db}="FOS_CAMERA"
+ENV{ID_USB_INTERFACES}=="", IMPORT{builtin}="usb_id"
+ENV{ID_USB_INTERFACES}=="*:06????:*", ENV{FOS_CAMERA}="1"
+ENV{ID_GPHOTO2}=="1", ENV{FOS_CAMERA}="1"
+ENV{ID_MTP_DEVICE}=="1", ENV{FOS_CAMERA}="1"
+
+ENV{FOS_CAMERA}!="1", GOTO="footage_offload_end"
+GROUP="footage-offload", MODE="0660"
+ENV{ID_GPHOTO2}="", ENV{GPHOTO2_DRIVER}=""
+ENV{ID_MTP_DEVICE}="", ENV{ID_MEDIA_PLAYER}=""
+
+LABEL="footage_offload_end"

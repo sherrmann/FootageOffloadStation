@@ -9,7 +9,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 
 from . import APP_ID, APP_NAME, __version__, paths
 

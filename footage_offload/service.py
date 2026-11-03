@@ -4,7 +4,6 @@ Runs as the unprivileged system user. Privileged actions go through the
 root helper (helper_client.HelperClient).
 """
 import logging
-import os
 import queue
 import threading
 import time

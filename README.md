@@ -213,7 +213,7 @@ Run folders are named from the Pi's clock, so it matters.
 - Look at the logs: `journalctl -u footage-offload -u footage-offload-helper`
 - The camera must present itself as MTP/PTP. Some cameras have a USB mode setting.
 - On the desktop edition, check that the desktop has not opened the camera (see below).
-- Note: after a run the Pi de-authorises the camera, so it disappears from `lsusb` until you unplug and replug it.
+- Note: after a run the Pi de-authorises the camera. It may still be listed by `lsusb`, but no driver uses it until you unplug and replug it (or switch it off and on).
 
 **The stick is not used.**
 - Does it carry the marker file `.footage-offload-station` in its root? If not, run `sudo footage-offload init-stick /dev/sda1` (with the right device). An unadopted stick shows a warning on the Status page.
@@ -226,7 +226,7 @@ Run folders are named from the Pi's clock, so it matters.
 
 **Clock warnings.** Pi clock not synchronised: check the network and that Ethernet is connected. Camera clock wrong: enter the camera Wi-Fi details in Settings (HERO6) or set the clock on the camera.
 
-**The desktop opens the camera or a file manager appears.** This should be prevented by the udev rule shipped with the .deb. Reboot after installing. If it persists, attach a diagnostics bundle to a bug report.
+**The desktop opens the camera or a file manager appears.** This should be prevented by the udev rule shipped with the .deb, which takes effect for cameras plugged in after installation; unplug and replug the camera. If it persists, attach a diagnostics bundle to a bug report.
 
 **Reporting a problem.** On the System page, download the diagnostics bundle. It contains logs, version information and a gphoto2 summary, and no footage. Attach it to your GitHub issue.
 

@@ -268,13 +268,13 @@ def test_samba_enable_and_disable(helper, root, tmp_path):
     original = conf.read_text()
     r = helper.handle({"action": "samba", "args": {"enabled": True}})
     assert r == {"ok": True, "result": {"enabled": True}}
-    share = (root / "etc/footage-offload/smb-footage.conf").read_text()
+    share = (root / "etc/samba/footage-offload.conf").read_text()
     assert "[footage]" in share and "read only = yes" in share and "guest ok = yes" in share
     assert f"path = {tmp_path / 'stick'}" in share and "force user = root" in share
     text = conf.read_text()
     assert text.startswith(original.rstrip("\n"))
     assert text.rstrip("\n").splitlines()[-1] == \
-        f"include = {root / 'etc/footage-offload/smb-footage.conf'}"
+        f"include = {root / 'etc/samba/footage-offload.conf'}"
     # enabling twice does not duplicate the include
     helper.handle({"action": "samba", "args": {"enabled": True}})
     assert conf.read_text() == text
@@ -282,7 +282,7 @@ def test_samba_enable_and_disable(helper, root, tmp_path):
     r = helper.handle({"action": "samba", "args": {"enabled": False}})
     assert r["ok"]
     assert conf.read_text() == original
-    assert not (root / "etc/footage-offload/smb-footage.conf").exists()
+    assert not (root / "etc/samba/footage-offload.conf").exists()
     assert helper.run.calls[-1] == ["systemctl", "try-reload-or-restart", "smbd"]
 
 
