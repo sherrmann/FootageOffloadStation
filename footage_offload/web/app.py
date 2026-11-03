@@ -355,7 +355,10 @@ def create_app(service, config, state, stick_manager, helper, sysinfo=None):
             stick_manager.eject()
         except Exception as e:  # noqa: BLE001
             log.warning("eject failed: %s", e)
-            return error("error.helper", 500, detail=str(e))
+            message_id = getattr(e, "message_id", "error.helper")
+            code = 409 if message_id == "error.busy" else (
+                404 if message_id == "error.no_stick" else 500)
+            return error(message_id, code, detail=getattr(e, "detail", str(e)))
         return jsonify({"ok": True})
 
     # history ----------------------------------------------------------------------

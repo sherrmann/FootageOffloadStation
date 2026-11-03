@@ -84,7 +84,9 @@ class StickManager:
     def start(self); def stop(self)
     def stick(self) -> Optional[stick.Stick]  # the mounted adopted stick, or None
     def refresh(self)                          # recompute status["stick"]
-    def eject(self) -> None                    # sync, unmount, power off; raises on failure
+    def eject(self) -> None                    # sync, unmount, power off; raises StickBusy
+                                               # or StickManagerError (.message_id, .detail)
+    def rescan(self)                           # re-probe unadopted sticks
 ```
 
 `status["stick"]` is `None` or:
@@ -101,7 +103,7 @@ existing devices, then monitors pyudev (`subsystem="usb"`,
 `DEVTYPE=usb_device`). A device counts as camera when udev property
 `FOS_CAMERA=1` (set by our udev rule) or `ID_GPHOTO2=1` or `ID_MTP_DEVICE=1`,
 or one of its interfaces has class 06 (still image). It builds a
-`DeviceInfo(port="usb:BUS,DEV", sysfs_path=device.sys_path, vendor_id,
+`DeviceInfo(port="usb:BUS,DEV", sysfs_path="/sys/bus/usb/devices/" + device.sys_name, vendor_id,
 product_id, manufacturer, model, serial)` with BUS/DEV zero-padded to 3
 digits, and calls `service.camera_added(info)` / `service.camera_removed(port)`.
 
@@ -126,7 +128,7 @@ Actions (fixed list; every argument is validated, nothing is passed to a shell):
 | `mount_stick` | `device` | unmounts other mounts of that device (desktop automount), mounts it read-write at `paths.STICK_MOUNT` so the service user can write (ext4: chown root of fs; exfat/vfat: `uid=,gid=,fmask=0022,dmask=0022`), only if the marker is present. Result `{"mounted": true, "fstype"}` |
 | `eject_stick` | – | `sync`, unmount `STICK_MOUNT`, power off the USB device |
 | `shutdown` / `reboot` | – | `systemctl poweroff` / `reboot` |
-| `samba` | `enabled` bool | writes/removes a read-only `[footage]` share include and reloads smbd |
+| `samba` | `enabled` bool | writes/removes a read-only `[footage]` share include and reloads smbd (guest access relies on Debian's default `map to guest = bad user`) |
 | `wifi_connect` | `ssid`, `password` | `nmcli` joins the camera Wi-Fi on `wlan0`, never as default route |
 | `wifi_disconnect` | – | removes that connection |
 

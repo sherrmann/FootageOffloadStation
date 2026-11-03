@@ -275,7 +275,9 @@ class TransferRun:
         ok = False
         try:
             try:
-                if mode == "auto":
+                if mode == "auto" and not self.camera.capabilities().partial_read:
+                    self.camera.read_to_fd(remote, fd, chunk, progress, "whole")
+                elif mode == "auto":
                     try:
                         self.camera.read_to_fd(remote, fd, chunk, progress, "partial")
                     except NotSupported:
