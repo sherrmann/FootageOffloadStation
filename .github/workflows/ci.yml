@@ -1,0 +1,218 @@
+name: CI
+
+# Stage 1  every push and pull request: tests and the .deb on x86 Ubuntu
+# Stage 2  every push: the .deb on an armv6 Raspberry Pi OS userland (QEMU
+#          user emulation in Docker): install, smoke test, purge, file system
+#          must be unchanged. Bookworm is the reference, Trixie also runs.
+# Stage 3  release tags v*: full boot of the Raspberry Pi OS Lite image in
+#          QEMU system emulation, then a browser test of the web UI.
+# Release  tags v*: the .deb is attached to the GitHub release (there is no
+#          apt repository).
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  stage1:
+    name: "Stage 1: tests and package (x86)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies (system Python, apt only)
+        run: |
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends \
+            python3-flask python3-pyudev python3-pytest python3-paho-mqtt \
+            libgphoto2-6t64 pyflakes3 shellcheck lintian udev
+
+      - name: pyflakes
+        run: /usr/bin/python3 -m pyflakes footage_offload tests
+
+      - name: Tests
+        run: /usr/bin/python3 -m pytest -q
+
+      - name: shellcheck
+        run: |
+          shellcheck packaging/build-deb.sh ci/*.sh
+          shellcheck -s sh packaging/debian/postinst packaging/debian/prerm packaging/debian/postrm
+
+      - name: Check udev rules and systemd units
+        run: |
+          udevadm verify --resolve-names=never packaging/udev/*.rules
+          systemd-analyze verify packaging/systemd/*.service
+
+      - name: Build package
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            packaging/build-deb.sh "$GITHUB_REF_NAME"
+          else
+            packaging/build-deb.sh
+          fi
+          dpkg-deb -I build/footage-offload_*_all.deb
+          dpkg-deb -c build/footage-offload_*_all.deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: build/footage-offload_*_all.deb
+          if-no-files-found: error
+
+  stage2:
+    name: "Stage 2: armv6 install/purge (${{ matrix.release }})"
+    if: github.event_name != 'pull_request'
+    needs: stage1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - release: bookworm   # reference
+            image: https://downloads.raspberrypi.com/raspios_oldstable_lite_armhf_latest
+          - release: trixie
+            image: https://downloads.raspberrypi.com/raspios_lite_armhf_latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: debs
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+
+      - name: Resolve image URL
+        id: image
+        run: echo "url=$(ci/rpios-image.sh resolve '${{ matrix.image }}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache root file system
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/rootfs.tar.zst
+          key: rpios-rootfs-v1-${{ steps.image.outputs.url }}
+
+      - name: Extract root file system
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          ci/rpios-image.sh fetch '${{ steps.image.outputs.url }}' "$RUNNER_TEMP/rpios.img"
+          sudo ci/rpios-image.sh rootfs "$RUNNER_TEMP/rpios.img" "$RUNNER_TEMP/rootfs.tar.zst"
+          sudo chown "$(id -u):$(id -g)" "$RUNNER_TEMP/rootfs.tar.zst"
+          rm -f "$RUNNER_TEMP/rpios.img"
+
+      - name: Import as Docker image
+        run: |
+          zstd -dc "$RUNNER_TEMP/rootfs.tar.zst" | docker import --platform linux/arm/v6 - rpios:${{ matrix.release }}
+          docker run --rm --platform linux/arm/v6 -e QEMU_CPU=arm1176 rpios:${{ matrix.release }} uname -m
+
+      - name: Install, test, purge on armv6
+        run: |
+          docker run --rm --platform linux/arm/v6 -e QEMU_CPU=arm1176 --tmpfs /tmp:exec \
+            -v "$PWD:/src:ro" -v "$PWD/debs:/debs:ro" \
+            rpios:${{ matrix.release }} /bin/bash /src/ci/stage2-in-container.sh
+
+  stage3:
+    name: "Stage 3: full boot and browser test (bookworm)"
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: stage1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: debs
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+
+      - name: Install QEMU system emulation
+        run: |
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends \
+            qemu-system-arm qemu-utils mtools e2fsprogs fdisk
+          qemu-system-aarch64 -M help | grep -E 'raspi(0|2b|3b)'
+
+      - name: Prepare image (dependencies, first-boot install unit)
+        run: |
+          sudo ci/stage3-boot.sh prepare \
+            https://downloads.raspberrypi.com/raspios_oldstable_lite_armhf_latest \
+            "$(ls debs/footage-offload_*_all.deb)" "$RUNNER_TEMP/stage3"
+
+      - name: Boot
+        run: sudo ci/stage3-boot.sh boot "$RUNNER_TEMP/stage3"
+
+      - name: Wait for the web UI
+        run: ci/stage3-boot.sh wait http://127.0.0.1:8080/api/v1/session 1500
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Browser test
+        working-directory: ci/playwright
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          node boot.spec.mjs http://127.0.0.1:8080
+
+      - name: Guest logs
+        if: always()
+        run: sudo ci/stage3-boot.sh logs "$RUNNER_TEMP/stage3"
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: stage3-failure
+          path: |
+            ${{ runner.temp }}/stage3/console.log
+            ci/playwright/boot-failure.png
+          if-no-files-found: ignore
+
+      - name: Stop
+        if: always()
+        run: sudo ci/stage3-boot.sh stop "$RUNNER_TEMP/stage3"
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [stage1, stage2, stage3]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: debs
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: debs/footage-offload_*_all.deb
+          fail_on_unmatched_files: true
+          body: |
+            Install on Raspberry Pi OS (Bookworm or Trixie):
+
+                sudo apt install ./footage-offload_<version>_all.deb
+
+            There is no apt repository; download the .deb below.

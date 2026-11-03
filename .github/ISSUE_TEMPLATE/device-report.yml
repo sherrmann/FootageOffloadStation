@@ -1,0 +1,146 @@
+name: Device report
+description: Report the results of testing a camera or other device
+title: "[Device report]: "
+labels: ["device-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing. Please answer every question. Write "unknown" if you do not know an answer.
+        Do not attach footage. Only the summary text is needed.
+
+  - type: input
+    id: device
+    attributes:
+      label: Device make and model
+      placeholder: "GoPro HERO6 Black"
+    validations:
+      required: true
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Device firmware version
+      description: Shown in the camera's settings menu or in the gphoto2 summary.
+    validations:
+      required: true
+
+  - type: input
+    id: pi-model
+    attributes:
+      label: Raspberry Pi model
+      placeholder: "Raspberry Pi Zero W"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os-edition
+    attributes:
+      label: Raspberry Pi OS edition
+      options:
+        - Lite
+        - Desktop
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os-release
+    attributes:
+      label: Raspberry Pi OS release
+      options:
+        - Bookworm
+        - Trixie
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: package-version
+    attributes:
+      label: Footage Offload Station package version
+      description: Output of `dpkg -s footage-offload | grep Version`
+    validations:
+      required: true
+
+  - type: textarea
+    id: gphoto2-summary
+    attributes:
+      label: Output of gphoto2 --summary
+      description: Run `gphoto2 --summary` with the device connected and paste the full output.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: detection
+    attributes:
+      label: Does detection work?
+      options:
+        - "Yes"
+        - "Partly"
+        - "No"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: copy
+    attributes:
+      label: Does copy work?
+      options:
+        - "Yes"
+        - "Partly"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: delete
+    attributes:
+      label: Does delete work?
+      options:
+        - "Yes"
+        - "Partly"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: release-charging
+    attributes:
+      label: Does release and charging work after de-authorise?
+      description: The device should stay charged and the Pi should not show it as in use.
+      options:
+        - "Yes"
+        - "Partly"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: clock
+    attributes:
+      label: Clock setting used for this test
+      options:
+        - "USB"
+        - "Wi-Fi"
+        - "None"
+    validations:
+      required: true
+
+  - type: input
+    id: speed
+    attributes:
+      label: Transfer speed
+      description: Camera to USB stick, in MB/s. Write "unknown" if not measured.
+      placeholder: "12.5 MB/s"
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else that may help, such as errors seen in the web interface or the log.

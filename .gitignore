@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+/build/
+/dist/
+*.deb
+.pytest_cache/
+ci/playwright/node_modules/

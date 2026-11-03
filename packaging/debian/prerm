@@ -1,0 +1,57 @@
+#!/bin/sh
+# prerm for footage-offload. Never touches footage: at most it syncs and
+# unmounts the stick so it can be pulled safely.
+set -e
+
+PKG_DIR=/usr/lib/python3/dist-packages/footage_offload
+STICK_MOUNT=/media/footage-offload-stick
+PROBE_MOUNT=/run/footage-offload/probe
+
+stop_units() {
+    if [ -d /run/systemd/system ]; then
+        # systemd stops the main service before the helper (After= order).
+        if command -v deb-systemd-invoke >/dev/null 2>&1; then
+            deb-systemd-invoke stop footage-offload.service \
+                footage-offload-helper.service >/dev/null || true
+        else
+            systemctl stop footage-offload.service \
+                footage-offload-helper.service >/dev/null || true
+        fi
+    fi
+}
+
+release_stick() {
+    sync
+    for mnt in "$PROBE_MOUNT" "$STICK_MOUNT"; do
+        if mountpoint -q "$mnt" 2>/dev/null; then
+            umount "$mnt" || echo "footage-offload: could not unmount $mnt" >&2
+        fi
+    done
+}
+
+remove_bytecode() {
+    if command -v py3clean >/dev/null 2>&1; then
+        py3clean -p footage-offload >/dev/null 2>&1 || true
+    fi
+    if [ -d "$PKG_DIR" ]; then
+        find "$PKG_DIR" -depth -type d -name __pycache__ -exec rm -rf {} + || true
+    fi
+}
+
+case "$1" in
+    remove|deconfigure)
+        stop_units
+        release_stick
+        remove_bytecode
+        ;;
+    upgrade|failed-upgrade)
+        # The services keep running and are restarted by the new postinst.
+        remove_bytecode
+        ;;
+    *)
+        echo "prerm called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,25 @@
+Package: footage-offload
+Version: @VERSION@
+Architecture: all
+Maintainer: Samuel Herrmann <sherrmann@users.noreply.github.com>
+Installed-Size: @INSTALLED_SIZE@
+Depends: python3 (>= 3.11), python3-flask, python3-pyudev, libgphoto2-6 | libgphoto2-6t64, adduser, mount, udev
+Recommends: samba, smbclient, rsync, python3-paho-mqtt, gphoto2, network-manager
+Suggests: exfatprogs, dosfstools, avahi-daemon
+Section: video
+Priority: optional
+Homepage: https://github.com/sherrmann/FootageOffloadStation
+Description: unattended camera offload station for a Raspberry Pi
+ Footage Offload Station turns a Raspberry Pi into an unattended offload
+ station: plug in a camera (MTP/PTP, for example a GoPro) and all footage is
+ copied to an adopted USB stick, verified, deleted from the camera, and the
+ camera is released from USB. A web interface in English, German, French and
+ Italian shows progress, history and a gallery.
+ .
+ WARNING: every MTP/PTP device connected to this computer is treated as a
+ camera and wiped after a verified copy, phones included, without asking.
+ Install this package only on a dedicated device.
+ .
+ The service runs as the system user footage-offload; a small root helper
+ performs a fixed list of privileged actions. Samba (read-only share), NAS
+ copy (rsync or SMB) and MQTT are optional.

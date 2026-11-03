@@ -1,0 +1,9 @@
+{
+  "name": "footage-offload-ci-boot",
+  "private": true,
+  "description": "CI stage 3: browser check against the booted image",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.49.1"
+  }
+}

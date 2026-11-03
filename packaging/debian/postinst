@@ -1,0 +1,119 @@
+#!/bin/sh
+# postinst for footage-offload. Must also work in a chroot or container
+# without a running systemd or udev (CI stage 2, image builders).
+set -e
+
+SVC_USER=footage-offload
+CONF_DIR=/etc/footage-offload
+CONF_FILE=$CONF_DIR/config.json
+STATE_DIR=/var/lib/footage-offload
+DEFAULT_CONF=/usr/share/footage-offload/config.default.json
+PKG_DIR=/usr/lib/python3/dist-packages/footage_offload
+UNITS="footage-offload-helper.service footage-offload.service"
+
+create_user() {
+    if ! getent passwd "$SVC_USER" >/dev/null; then
+        adduser --system --group --home "$STATE_DIR" --no-create-home \
+            --quiet "$SVC_USER"
+    fi
+    # plugdev: USB devices; video: /dev/vchiq for vcgencmd (undervoltage);
+    # systemd-journal: logs for the diagnostics bundle. Only if they exist.
+    for group in plugdev video systemd-journal; do
+        if getent group "$group" >/dev/null &&
+            ! id -nG "$SVC_USER" | tr ' ' '\n' | grep -qx "$group"; then
+            adduser --quiet "$SVC_USER" "$group"
+        fi
+    done
+}
+
+create_dirs() {
+    # The service rewrites the configuration atomically (temporary file +
+    # rename in the same directory), so it owns the directory. The file is
+    # deliberately not a dpkg conffile.
+    install -d -o "$SVC_USER" -g "$SVC_USER" -m 0750 "$CONF_DIR"
+    install -d -o "$SVC_USER" -g "$SVC_USER" -m 0750 "$STATE_DIR"
+    if [ ! -e "$CONF_FILE" ] && [ ! -L "$CONF_FILE" ]; then
+        install -o "$SVC_USER" -g "$SVC_USER" -m 0600 "$DEFAULT_CONF" "$CONF_FILE"
+    fi
+}
+
+create_run_dir() {
+    # /run/footage-offload from tmpfiles.d (at boot it is created by
+    # systemd-tmpfiles-setup.service). Needs the group, so after create_user.
+    if command -v systemd-tmpfiles >/dev/null 2>&1; then
+        systemd-tmpfiles --create footage-offload.conf || true
+    fi
+}
+
+compile_python() {
+    if command -v py3compile >/dev/null 2>&1; then
+        py3compile -p footage-offload || true
+    else
+        python3 -m compileall -q "$PKG_DIR" >/dev/null || true
+    fi
+}
+
+reload_udev() {
+    # Only when udevd runs (not in a chroot or container).
+    if [ -S /run/udev/control ] && command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload || true
+        # Re-evaluate cameras that are already plugged in.
+        udevadm trigger --subsystem-match=usb --action=change || true
+    fi
+}
+
+enable_units() {
+    for unit in $UNITS; do
+        if command -v deb-systemd-helper >/dev/null 2>&1; then
+            # was-enabled is true on a first install; on upgrades it keeps
+            # a unit the administrator disabled disabled.
+            if deb-systemd-helper --quiet was-enabled "$unit"; then
+                deb-systemd-helper enable "$unit" >/dev/null || true
+            else
+                deb-systemd-helper update-state "$unit" >/dev/null || true
+            fi
+        elif command -v systemctl >/dev/null 2>&1; then
+            systemctl enable "$unit" >/dev/null 2>&1 || true
+        fi
+    done
+}
+
+start_units() {
+    # $1: "start" or "restart"
+    if [ -d /run/systemd/system ]; then
+        systemctl --system daemon-reload >/dev/null || true
+        if command -v deb-systemd-invoke >/dev/null 2>&1; then
+            # shellcheck disable=SC2086 # word splitting of $UNITS is intended
+            deb-systemd-invoke "$1" $UNITS >/dev/null || true
+        else
+            # shellcheck disable=SC2086
+            systemctl "$1" $UNITS >/dev/null || true
+        fi
+    fi
+}
+
+case "$1" in
+    configure)
+        create_user
+        create_dirs
+        create_run_dir
+        compile_python
+        reload_udev
+        enable_units
+        if [ -n "$2" ]; then
+            start_units restart
+        else
+            start_units start
+        fi
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        enable_units
+        start_units start
+        ;;
+    *)
+        echo "postinst called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

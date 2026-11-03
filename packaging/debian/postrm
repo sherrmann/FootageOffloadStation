@@ -1,0 +1,119 @@
+#!/bin/sh
+# postrm for footage-offload.
+#   remove: the program is gone; configuration, state and the user stay.
+#   purge:  also configuration, state, the Samba include and the system
+#           user, so the file system is as before the installation.
+# Footage on the stick is never touched.
+set -e
+
+SVC_USER=footage-offload
+CONF_DIR=/etc/footage-offload
+STATE_DIR=/var/lib/footage-offload
+STICK_MOUNT=/media/footage-offload-stick
+SMB_CONF=/etc/samba/smb.conf
+UNITS="footage-offload-helper.service footage-offload.service"
+
+reload_systemd() {
+    if [ -d /run/systemd/system ]; then
+        systemctl --system daemon-reload >/dev/null || true
+    fi
+}
+
+reload_udev() {
+    if [ -S /run/udev/control ] && command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload || true
+    fi
+}
+
+remove_samba_include() {
+    # When the share is on, the helper appends to smb.conf an empty line,
+    # its marker comment and the include line:
+    #
+    #   # footage-offload: footage share (managed automatically, do not edit)
+    #   include = /etc/samba/footage-offload.conf
+    #
+    # Remove those three lines (also when the include file lives elsewhere,
+    # as long as its path contains footage-offload).
+    [ -f "$SMB_CONF" ] || return 0
+    mark='^[[:space:]]*#[[:space:]]*footage-offload([:[:space:]].*)?$'
+    incl='^[[:space:]]*include[[:space:]]*=.*footage-offload'
+    if grep -Eq -e "$mark" -e "$incl" "$SMB_CONF"; then
+        tmp=$(mktemp)
+        awk -v mark="$mark" -v incl="$incl" '
+            { line[NR] = $0 }
+            END {
+                for (i = 1; i <= NR; i++) {
+                    if (line[i] ~ mark) {
+                        drop[i] = 1
+                        if (i > 1 && line[i - 1] ~ /^[[:space:]]*$/) drop[i - 1] = 1
+                    }
+                    if (line[i] ~ incl) drop[i] = 1
+                }
+                for (i = 1; i <= NR; i++) if (!drop[i]) print line[i]
+            }' "$SMB_CONF" > "$tmp"
+        # Rewrite in place: keeps owner, mode and inode of smb.conf.
+        cat "$tmp" > "$SMB_CONF"
+        rm -f "$tmp"
+        if [ -d /run/systemd/system ]; then
+            systemctl try-reload-or-restart smbd.service >/dev/null 2>&1 || true
+        fi
+    fi
+}
+
+remove_run_dir() {
+    # rmdir only: never recurse into a (still) mounted probe directory.
+    rm -f /run/footage-offload/helper.sock
+    rmdir /run/footage-offload/probe 2>/dev/null || true
+    rmdir /run/footage-offload 2>/dev/null || true
+}
+
+remove_user() {
+    if getent passwd "$SVC_USER" >/dev/null; then
+        if command -v deluser >/dev/null 2>&1; then
+            deluser --system --quiet "$SVC_USER" || true
+        else
+            userdel "$SVC_USER" || true
+        fi
+    fi
+    if getent group "$SVC_USER" >/dev/null; then
+        if command -v delgroup >/dev/null 2>&1; then
+            delgroup --system --quiet --only-if-empty "$SVC_USER" || true
+        else
+            groupdel "$SVC_USER" || true
+        fi
+    fi
+}
+
+case "$1" in
+    remove)
+        reload_systemd
+        reload_udev
+        remove_run_dir
+        ;;
+    purge)
+        if command -v deb-systemd-helper >/dev/null 2>&1; then
+            for unit in $UNITS; do
+                deb-systemd-helper purge "$unit" >/dev/null || true
+                deb-systemd-helper unmask "$unit" >/dev/null || true
+            done
+        fi
+        reload_systemd
+        remove_run_dir
+        remove_samba_include
+        rm -rf "$CONF_DIR" "$STATE_DIR"
+        rm -f /etc/samba/footage-offload.conf
+        # Only the empty mount point; a mounted stick is left alone.
+        if [ -d "$STICK_MOUNT" ] && ! mountpoint -q "$STICK_MOUNT" 2>/dev/null; then
+            rmdir "$STICK_MOUNT" 2>/dev/null || true
+        fi
+        remove_user
+        ;;
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+    *)
+        echo "postrm called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

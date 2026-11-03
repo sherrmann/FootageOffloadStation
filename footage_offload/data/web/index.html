@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Footage Offload Station</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<a class="skip" href="#view" data-i18n-skip>Skip</a>
+<header class="top">
+  <div class="bar">
+    <h1 id="app-title">Footage Offload Station</h1>
+    <span id="conn" class="conn" role="status"></span>
+    <button id="logout" class="btn small ghost" hidden></button>
+  </div>
+  <nav id="nav" aria-label="Main navigation" hidden>
+    <a href="#status" data-route="status" data-i18n="nav.status">Status</a>
+    <a href="#stick" data-route="stick" data-i18n="nav.stick">Stick</a>
+    <a href="#history" data-route="history" data-i18n="nav.history">History</a>
+    <a href="#gallery" data-route="gallery" data-i18n="nav.gallery">Gallery</a>
+    <a href="#settings" data-route="settings" data-i18n="nav.settings">Settings</a>
+    <a href="#system" data-route="system" data-i18n="nav.system">System</a>
+  </nav>
+</header>
+<main id="view" tabindex="-1"><p class="muted">Loading…</p></main>
+<div id="live" class="sr-only" aria-live="polite" role="status"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="dlg-confirm" aria-labelledby="dlg-confirm-text">
+  <form method="dialog">
+    <p id="dlg-confirm-text"></p>
+    <div class="row end">
+      <button value="cancel" class="btn ghost" id="dlg-cancel"></button>
+      <button value="ok" class="btn primary" id="dlg-ok"></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-media" aria-labelledby="dlg-media-title" class="media">
+  <div class="row between">
+    <strong id="dlg-media-title"></strong>
+    <button id="dlg-media-close" class="btn small ghost"></button>
+  </div>
+  <div id="dlg-media-body"></div>
+  <p class="row"><a id="dlg-media-dl" class="btn primary" download></a></p>
+</dialog>
+<script src="/static/app.js"></script>
+</body>
+</html>
