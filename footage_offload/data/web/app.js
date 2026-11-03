@@ -15,6 +15,7 @@ function h(tag, attrs) {
     if (k === 'class') el.className = v;
     else if (k.slice(0, 2) === 'on') el.addEventListener(k.slice(2), v);
     else if (k === 'text') el.textContent = v;
+    else if (k === 'style') el.style.cssText = v;  // CSSOM: allowed by the CSP, unlike a style attribute
     else el.setAttribute(k, v === true ? '' : v);
   });
   for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);

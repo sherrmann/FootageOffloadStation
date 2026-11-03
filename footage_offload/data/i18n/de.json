@@ -166,7 +166,7 @@
  "settings.web_port.hint": "Wird erst nach einem Neustart des Dienstes wirksam.",
  "status.current_file": "Aktuelle Datei",
  "status.device": "Kamera",
- "status.done": "Fertig. Die Kamera kann abgesteckt werden.",
+ "status.done": "Fertig. Die Aufnahmen sind auf dem Stick; die Kamera bleibt angeschlossen und lädt weiter.",
  "status.error": "Fehler",
  "status.eta": "Restzeit",
  "status.files_of": "{done} von {total} Dateien",

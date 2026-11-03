@@ -166,7 +166,7 @@
  "settings.web_port.hint": "Richiede il riavvio del servizio.",
  "status.current_file": "File attuale",
  "status.device": "Fotocamera",
- "status.done": "Fatto. La fotocamera può essere scollegata.",
+ "status.done": "Fatto. I filmati sono sulla chiavetta; la fotocamera resta collegata e continua a caricarsi.",
  "status.error": "Errore",
  "status.eta": "Tempo rimanente",
  "status.files_of": "{done} di {total} file",

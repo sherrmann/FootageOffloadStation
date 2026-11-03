@@ -166,7 +166,7 @@
  "settings.web_port.hint": "Needs a restart of the service to take effect.",
  "status.current_file": "Current file",
  "status.device": "Camera",
- "status.done": "Done. The camera can be unplugged.",
+ "status.done": "Done. The footage is on the stick; the camera stays connected and keeps charging.",
  "status.error": "Error",
  "status.eta": "Time left",
  "status.files_of": "{done} of {total} files",

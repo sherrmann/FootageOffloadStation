@@ -166,7 +166,7 @@
  "settings.web_port.hint": "Nécessite un redémarrage du service.",
  "status.current_file": "Fichier en cours",
  "status.device": "Caméra",
- "status.done": "Terminé. La caméra peut être débranchée.",
+ "status.done": "Terminé. Les vidéos sont sur la clé ; la caméra reste branchée et continue de charger.",
  "status.error": "Erreur",
  "status.eta": "Temps restant",
  "status.files_of": "{done} sur {total} fichiers",
